@@ -104,6 +104,9 @@ app.get('/:perd/:name', async function(req, res) {
     return res.status(200).json(result);
 });
 
+app.get('/', (req, res) => {
+    res.send('Welcome to Horoscope-Rashifal');
+})
 
 app.listen(PORT, function () {
     console.log(`Server running at PORT number ${PORT}!`);
