@@ -48,8 +48,8 @@ app.get('/all', async function (req, res) {
     return res.status(200).json(result);
 });
 
-app.get('/:perd/all', async function (req, res) {
-    var perd = req.params.perd.toLowerCase();
+app.get('/:period/all', async function (req, res) {
+    var perd = req.params.period.toLowerCase();
 
     if(perd == "today"){
         perd = "daily";
@@ -72,11 +72,11 @@ app.get('/:perd/all', async function (req, res) {
     return res.status(200).json(result);
 });
 
-app.get('/:name', async function(req, res) {
-    const name = req.params.name.toLowerCase();
+app.get('/:rashi', async function(req, res) {
+    var name = req.params.rashi.toLowerCase();
 
     if(!rashis.includes(name)){
-        return res.status(400).json({message: "Invalid Rashi Name"});
+        return res.status(400).json({message: "Invalid Rashi"});
     }
 
     const result = await performScraping(name, "daily");
@@ -84,22 +84,22 @@ app.get('/:name', async function(req, res) {
     return res.status(200).json(result);
 });
 
-app.get('/:perd/:name', async function(req, res) {
-    const name = req.params.name.toLowerCase();
-    var perd = req.params.perd.toLowerCase();
+app.get('/:period/:rashi', async function(req, res) {
+    var name = req.params.rashi.toLowerCase();
+    var perd = req.params.period.toLowerCase();
 
     if(perd == "today"){
         perd = "daily";
     }
 
     if(!rashis.includes(name)){
-        return res.status(400).json({message: "Invalid Rashi Name"});
+        return res.status(400).json({message: "Invalid Rashi"});
     }
     if(!periods.includes(perd)){
         return res.status(400).json({message: "Invalid Period"});
     }
 
-    const result = await performScraping(req.params.name, perd);
+    const result = await performScraping(name, perd);
 
     return res.status(200).json(result);
 });
