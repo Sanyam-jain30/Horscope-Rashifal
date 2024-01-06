@@ -287,13 +287,18 @@ app.get('/birthday/:yyyy/:mm/:dd', async(req, res) => {
     context.each((index, el) => {
 		var text = $(el).text();
 
-        birthdays.unshift({
-            "year": text.substring(0, 4),
-            "description": text.substring(5)
-        });
+        if(year == text.substring(0, 4)){
+            birthdays.unshift({
+                "year": text.substring(0, 4),
+                "description": text.substring(5)
+            });
+        }
 	});
 
-    return res.status(200).json({"birthdays": birthdays});
+    if(birthdays.length == 0){
+        return res.status(200).json({message: "No Birthday found"});
+    }
+    return res.status(200).json({"birthday": birthdays});
 });
 
 app.get('/', (req, res) => {
