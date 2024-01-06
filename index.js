@@ -3,12 +3,15 @@ const express = require('express');
 const app = express();
 const cheerio = require("cheerio");
 const axios = require("axios");
+const wiki = require('wikipedia');
 
 const rashis = ["aries", "taurus", "gemini", "cancer", 
                     "leo", "virgo", "libra", "scorpio", 
                     "sagittarius", "capricorn", "aquarius", "pisces"];
 
 const periods = ["yesterday", "daily", "tomorrow", "weekly", "monthly", "yearly"];
+
+const day_types = ["selected", "births", "deaths", "events", "holidays"];
 
 async function performScraping(rashi, perd) {
     var data = {
@@ -34,7 +37,110 @@ async function performScraping(rashi, perd) {
     return data;
 }
 
-app.get('/all', async function (req, res) {
+function isValidDate(day, month) {
+    if (month < 1 || month > 12) {
+        return false;
+      }
+    
+    const maxDaysInMonth = new Date(2020, month, 0).getDate();
+    return day >= 1 && day <= maxDaysInMonth;
+}
+
+function getTypeSpecificContent(type, data){
+    var result = {};
+
+    if(type == "all"){
+        var subresult = [];
+        for(let x of data["selected"]){
+            let event = {};
+            event['title'] = x['text'];
+            event['description'] = x['pages'][x['pages'].length-1]['extract'];
+            event['year'] = x['year'];
+
+            subresult.push(event);
+        }
+
+        result["selected"] = subresult;
+
+        subresult = [];
+        for(let x of data["births"]){
+            let event = {};
+            event['title'] = x['text'];
+            event['description'] = x['pages'][0]['extract'];
+            event['year'] = x['year'];
+
+            subresult.push(event);
+        }
+
+        result["births"] = subresult;
+
+        subresult = [];
+        for(let x of data["deaths"]){
+            let event = {};
+            event['title'] = x['text'];
+            event['description'] = x['pages'][0]['extract'];
+            event['year'] = x['year'];
+
+            subresult.push(event);
+        }
+
+        result["deaths"] = subresult;
+
+        subresult = [];
+        for(let x of data["events"]){
+            let event = {};
+            event['title'] = x['text'];
+            event['description'] = x['pages'][0]['extract'];
+            event['year'] = x['year'];
+
+            subresult.push(event);
+        }
+
+        result["events"] = subresult;
+
+        subresult = [];
+        for(let x of data["holidays"]){
+            let event = {};
+            event['title'] = x['text'];
+            event['description'] = x['pages'][0]['extract'];
+            event['year'] = x['year'];
+
+            subresult.push(event);
+        }
+
+        result["holidays"] = subresult;
+    }
+    if(type == "selected"){
+        var subresult = [];
+        for(let x of data[type]){
+            let event = {};
+            event['title'] = x['text'];
+            event['description'] = x['pages'][x['pages'].length-1]['extract'];
+            event['year'] = x['year'];
+
+            subresult.push(event);
+        }
+
+        result[type] = subresult;
+    }
+    if(type == "births" || type == "deaths" || type == "events" || type == "holidays"){
+        var subresult = [];
+        for(let x of data[type]){
+            let event = {};
+            event['title'] = x['text'];
+            event['description'] = x['pages'][0]['extract'];
+            event['year'] = x['year'];
+
+            subresult.push(event);
+        }
+
+        result[type] = subresult;
+    }
+
+    return result;
+}
+
+app.get('/rashifal/all', async function (req, res) {
     var details = [];
 
     for(let x of rashis){
@@ -48,7 +154,7 @@ app.get('/all', async function (req, res) {
     return res.status(200).json(result);
 });
 
-app.get('/:period/all', async function (req, res) {
+app.get('/rashifal/:period/all', async function (req, res) {
     var perd = req.params.period.toLowerCase();
 
     if(perd == "today"){
@@ -72,7 +178,7 @@ app.get('/:period/all', async function (req, res) {
     return res.status(200).json(result);
 });
 
-app.get('/:rashi', async function(req, res) {
+app.get('/rashifal/:rashi', async function(req, res) {
     var name = req.params.rashi.toLowerCase();
 
     if(!rashis.includes(name)){
@@ -84,7 +190,7 @@ app.get('/:rashi', async function(req, res) {
     return res.status(200).json(result);
 });
 
-app.get('/:period/:rashi', async function(req, res) {
+app.get('/rashifal/:period/:rashi', async function(req, res) {
     var name = req.params.rashi.toLowerCase();
     var perd = req.params.period.toLowerCase();
 
@@ -104,9 +210,49 @@ app.get('/:period/:rashi', async function(req, res) {
     return res.status(200).json(result);
 });
 
+app.get('/dayfind/all/:mm/:dd', async (req, res) => {
+    var month = req.params.mm;
+    var day = req.params.dd;
+
+    try {
+        const data = await wiki.onThisDay({type: "all", month: month, day: day});
+        
+        if(!isValidDate(day, month)){
+            return res.status(400).json({message: "Invalid Day or Month"});
+        }
+
+        return res.status(200).json(getTypeSpecificContent("all", data));
+    } catch (error) {
+        console.log(error);
+        return res.status(400).json({message: "Bad Request"});
+    }
+});
+
+app.get('/dayfind/:type/:mm/:dd', async (req, res) => {
+    var type = req.params.type.toLowerCase();
+    var month = req.params.mm;
+    var day = req.params.dd;
+
+    try {
+        const data = await wiki.onThisDay({type: type, month: month, day: day});
+        
+        if(!day_types.includes(type)){
+            return res.status(400).json({message: "Invalid Type"});
+        }
+        if(!isValidDate(day, month)){
+            return res.status(400).json({message: "Invalid Day or Month"});
+        }
+
+        return res.status(200).json(getTypeSpecificContent(type, data));
+    } catch (error) {
+        console.log(error);
+        return res.status(400).json({message: "Bad Request"});
+    }
+});
+
 app.get('/', (req, res) => {
     res.send('Welcome to Horoscope-Rashifal');
-})
+});
 
 app.listen(PORT, function () {
     console.log(`Server running at PORT number ${PORT}!`);
