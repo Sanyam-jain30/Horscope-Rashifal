@@ -37,13 +37,25 @@ async function performScraping(rashi, perd) {
     return data;
 }
 
-function isValidDate(day, month) {
+function isValidDate(year, month, day) {
+    if (year < 1) {
+        return false;
+    }
+
     if (month < 1 || month > 12) {
         return false;
-      }
-    
-    const maxDaysInMonth = new Date(2020, month, 0).getDate();
-    return day >= 1 && day <= maxDaysInMonth;
+    }
+
+    const maxDaysInMonth = new Date(year, month, 0).getDate();
+
+    if (day < 1 || day > maxDaysInMonth) {
+        return false;
+    }
+
+    const currentDate = new Date();
+    const inputDate = new Date(year, month - 1, day); // Month is zero-based in JavaScript Date objects
+
+    return inputDate <= currentDate;
 }
 
 function getTypeSpecificContent(type, data){
@@ -217,7 +229,7 @@ app.get('/dayfind/all/:mm/:dd', async (req, res) => {
     try {
         const data = await wiki.onThisDay({type: "all", month: month, day: day});
         
-        if(!isValidDate(day, month)){
+        if(!isValidDate(2020, month, day)){
             return res.status(400).json({message: "Invalid Day or Month"});
         }
 
@@ -239,7 +251,7 @@ app.get('/dayfind/:type/:mm/:dd', async (req, res) => {
         if(!day_types.includes(type)){
             return res.status(400).json({message: "Invalid Type"});
         }
-        if(!isValidDate(day, month)){
+        if(!isValidDate(2020, month, day)){
             return res.status(400).json({message: "Invalid Day or Month"});
         }
 
@@ -250,8 +262,42 @@ app.get('/dayfind/:type/:mm/:dd', async (req, res) => {
     }
 });
 
+app.get('/birthday/:yyyy/:mm/:dd', async(req, res) => {
+    const year = req.params.yyyy;
+    const month = req.params.mm;
+    const day = req.params.dd;
+    const date = new Date(year + "-" + month + "-" + day);
+
+    if(!isValidDate(year, month, day)){
+        return res.status(400).json({message: "Invalid Date"});
+    }
+
+    const axiosResponse = await axios.request({
+        method: "GET",
+        url: "https://www.onthisday.com/birthdays/" + date.toLocaleString([], { month: 'long' }) + "/" + day + "/",
+        headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36"
+        }
+    });
+
+    const $ = cheerio.load(axiosResponse.data);
+    const context = $('.person');
+    var birthdays = [];
+
+    context.each((index, el) => {
+		var text = $(el).text();
+
+        birthdays.unshift({
+            "year": text.substring(0, 4),
+            "description": text.substring(5)
+        });
+	});
+
+    return res.status(200).json({"birthdays": birthdays});
+});
+
 app.get('/', (req, res) => {
-    res.send('Welcome to Horoscope-Rashifal');
+    res.send('Myself Sanyam Jain welcomes you to my workspace.');
 });
 
 app.listen(PORT, function () {
